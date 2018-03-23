@@ -3,7 +3,7 @@
 const mongoose = require('mongoose');
 
 const folderSchema = new mongoose.Schema({
-  name: { type: String, },
+  name: { type: String, unique: true },
 });
 
 folderSchema.set('toObject', {

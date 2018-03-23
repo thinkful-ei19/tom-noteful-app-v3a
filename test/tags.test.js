@@ -6,21 +6,20 @@ const mongoose = require('mongoose');
 
 const { TEST_MONGODB_URI } = require('../config');
 
-const Folder = require('../models/folder');
-const Note = require('../models/note');
-const seedNotes = require('../db/seed/folders');
+const Tag = require('../models/tag');
+const seedNotes = require('../db/seed/tags');
 
 const expect = chai.expect;
 
 chai.use(chaiHttp);
 
-describe('Noteful API - Folders', function () {
+describe('Noteful API - Tags', function () {
   before(function () {
     return mongoose.connect(TEST_MONGODB_URI);
   });
 
   beforeEach(function () {
-    return Folder.insertMany(seedNotes);
+    return Tag.insertMany(seedNotes);
   });
 
   afterEach(function () {
@@ -31,11 +30,11 @@ describe('Noteful API - Folders', function () {
     return mongoose.disconnect();
   });
 
-  describe('GET /api/folders', function () {
+  describe('GET /api/tags', function () {
 
-    it('should return the correct number of Folders and correct fields', function () {
-      const dbPromise = Folder.find();
-      const apiPromise = chai.request(app).get('/api/folders');
+    it('should return the correct number of Tags and correct fields', function () {
+      const dbPromise = Tag.find();
+      const apiPromise = chai.request(app).get('/api/tags');
 
       return Promise.all([dbPromise, apiPromise])
         .then(([data, res]) => {
@@ -50,14 +49,14 @@ describe('Noteful API - Folders', function () {
         });
     });
 
-    describe('GET /api/folders/:id', function () {
+    describe('GET /api/tags/:id', function () {
 
       it('should return correct notes for a given id', function () {
         let data;
-        return Folder.findOne()
+        return Tag.findOne()
           .then(_data => {
             data = _data;
-            return chai.request(app).get(`/api/folders/${data.id}`);
+            return chai.request(app).get(`/api/tags/${data.id}`);
           })
           .then((res) => {
             expect(res).to.have.status(200);
@@ -76,7 +75,7 @@ describe('Noteful API - Folders', function () {
         const badId = '99-99-99';
 
         return chai.request(app)
-          .get(`/api/folders/${badId}`)
+          .get(`/api/tags/${badId}`)
           .catch(err => err.response)
           .then(res => {
             expect(res).to.have.status(400);
@@ -87,7 +86,7 @@ describe('Noteful API - Folders', function () {
       it('should respond with a 404 for non-existent id', function () {
 
         return chai.request(app)
-          .get('/api/folders/AAAAAAAAAAAAAAAAAAAAAAAA')
+          .get('/api/tags/AAAAAAAAAAAAAAAAAAAAAAAA')
           .catch(err => err.response)
           .then(res => {
             expect(res).to.have.status(404);
@@ -96,15 +95,15 @@ describe('Noteful API - Folders', function () {
 
     });
 
-    describe('POST /api/folders', function () {
+    describe('POST /api/tags', function () {
 
       it('should create and return a new item when provided valid data', function () {
         const newItem = {
-          'name': 'Test folder',
+          'name': 'Test tag',
         };
         let res;
         return chai.request(app)
-          .post('/api/folders')
+          .post('/api/tags')
           .send(newItem)
           .then(function (_res) {
             res = _res;
@@ -113,7 +112,7 @@ describe('Noteful API - Folders', function () {
             expect(res).to.be.json;
             expect(res.body).to.be.a('object');
             expect(res.body).to.have.keys('id', 'name');
-            return Folder.findById(res.body.id);
+            return Tag.findById(res.body.id);
           })
           .then(data => {
             expect(res.body.id).to.equal(data.id);
@@ -125,7 +124,7 @@ describe('Noteful API - Folders', function () {
         const newItem = {};
 
         return chai.request(app)
-          .post('/api/folders')
+          .post('/api/tags')
           .send(newItem)
           .catch(err => err.response)
           .then(res => {
@@ -138,18 +137,18 @@ describe('Noteful API - Folders', function () {
 
     });
 
-    describe('PUT /api/folders/:id', function () {
+    describe('PUT /api/tags/:id', function () {
 
-      it('should update the folder when provided proper valid data', function () {
+      it('should update the tag when provided proper valid data', function () {
         const updateItem = {
           'name': 'dogs'
         };
         let data;
-        return Folder.findOne()
+        return Tag.findOne()
           .then(_data => {
             data = _data;
             return chai.request(app)
-              .put(`/api/folders/${data.id}`)
+              .put(`/api/tags/${data.id}`)
               .send(updateItem);
           })
           .then(function (res) {
@@ -171,7 +170,7 @@ describe('Noteful API - Folders', function () {
         const badId = '99-99-99';
 
         return chai.request(app)
-          .put(`/api/folders/${badId}`)
+          .put(`/api/tags/${badId}`)
           .send(updateItem)
           .catch(err => err.response)
           .then(res => {
@@ -186,70 +185,30 @@ describe('Noteful API - Folders', function () {
         };
 
         return chai.request(app)
-          .put('/api/folders/AAAAAAAAAAAAAAAAAAAAAAAA')
+          .put('/api/tags/AAAAAAAAAAAAAAAAAAAAAAAA')
           .send(updateItem)
           .catch(err => err.response)
           .then(res => {
             expect(res).to.have.status(404);
           });
       });
-
-      it('should respond with a 400 for missing name', function () {
-        const updateItem = {};
-        const Id = '111111111111111111111101';
-
-        return chai.request(app)
-          .put(`/api/folders/${Id}`)
-          .send(updateItem)
-          .catch(err => err.response)
-          .then(res => {
-            expect(res).to.have.status(400);
-            expect(res.body.message).to.eq('Missing `title` in request body');
-          });
-      });
-
     });
 
-    describe('DELETE  /api/folders/:id', function () {
+    describe('DELETE  /api/tags/:id', function () {
 
       it('should delete an item by id', function () {
         let data;
-        return Folder.findOne()
+        return Tag.findOne()
           .then(_data => {
             data = _data;
-            return chai.request(app).delete(`/api/folders/${data.id}`);
+            return chai.request(app).delete(`/api/tags/${data.id}`);
           })
           .then(function (res) {
             expect(res).to.have.status(204);
           });
       });
-
-      // it('should remove folderid from corresponding notes', function() {
-      //   let data;
-      //   return Note.findByIdAndRemove()
-      //     .then(_data => {
-      //       data = _data;
-      //       return chai.request(app).delete(`/api/folders/${data.id}`);
-      //     })
-      //     .then(function (res) {
-      //       expect(res).to.have.status(204);
-      //     });
-      // });
     });
 
-    // it('should remove folderid from corresponding notes', function () {
-    //   let data;
-    //   return Folder.findByIdAndRemove(id)
-    //     .then(_data => {
-    //       data = _data;
-    //       return chai.request(app).delete(`/api/folders/${data.id}`);
-    //     })
-    //     .then(function (res) {
-    //       expect(res).to.have.status(204);
-    //     });
-    // });
-
   });
-
 
 });

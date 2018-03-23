@@ -2,6 +2,9 @@
 const app = require('../server');
 const chai = require('chai');
 const chaiHttp = require('chai-http');
+const mongoose = require('mongoose');
+
+const { PORT, MONGODB_URI } = require('../config');
 
 const expect = chai.expect;
 
@@ -55,4 +58,12 @@ describe('Basic Express setup', () => {
     });
 
   });
+
+  describe('Mongodb check', () => {
+
+    it('should check to see if mongodb is running' , () => {
+      expect(mongoose.connect(MONGODB_URI));
+    });
+  });
+
 });

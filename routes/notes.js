@@ -11,6 +11,7 @@ const Note = require('../models/note');
 router.get('/notes', (req, res, next) => {
   const { searchTerm } = req.query;
   const { folderId } = req.query;
+  const { tagId } = req.query;
 
   let filter = {};
 
@@ -23,9 +24,14 @@ router.get('/notes', (req, res, next) => {
     filter.folderId = folderId;
   }
 
+  if (tagId) {
+    filter.tagId = tagId;
+  }
+
 
   Note.find(filter)
     .sort('created')
+    .populate('tags')
     .then(results => {
       res.json(results);
     })
@@ -45,6 +51,7 @@ router.get('/notes/:id', (req, res, next) => {
   }
 
   Note.findById(id)
+    .populate('tags')
     .then(result => {
       if (result) {
         res.json(result);
@@ -59,19 +66,32 @@ router.get('/notes/:id', (req, res, next) => {
 
 /* ========== POST/CREATE AN ITEM ========== */
 router.post('/notes', (req, res, next) => {
-  const { title, content, folderId } = req.body; // added folder id
-
+  const { title, content, folderId, tags } = req.body; // added folder id
+ 
   /***** Never trust users - validate input *****/
   if (!title) {
     const err = new Error('Missing `title` in request body');
     err.status = 400;
     return next(err);
   }
+  if (tags) {
+    tags.forEach((tag) => {
+      if (!mongoose.Types.ObjectId.isValid(tag)) {
+        const err = new Error('The `id` is not valid');
+        err.status = 400;
+        return next(err);
+      }
+    });
+  }
+  const newItem = { title, content, folderId, tags };
 
-  const newItem = { title, content, folderId };
-
-  Note.create(newItem)
+  Note.create(newItem) 
     .then(result => {
+      { 
+        if (tags) { // allows user to post with no tags
+          newItem.populate('tags'); 
+        }
+      } 
       res.location(`${req.originalUrl}/${result.id}`).status(201).json(result);
     })
     .catch(err => {
@@ -82,7 +102,7 @@ router.post('/notes', (req, res, next) => {
 /* ========== PUT/UPDATE A SINGLE ITEM ========== */
 router.put('/notes/:id', (req, res, next) => {
   const { id } = req.params;
-  const { title, content, folderId } = req.body;
+  const { title, content, folderId, tags } = req.body;
 
   /***** Never trust users - validate input *****/
   if (!title) {
@@ -97,7 +117,7 @@ router.put('/notes/:id', (req, res, next) => {
     return next(err);
   }
 
-  const updateItem = { title, content, folderId };
+  const updateItem = { title, content, folderId, tags };
   const options = { new: true };
 
   Note.findByIdAndUpdate(id, updateItem, options)
