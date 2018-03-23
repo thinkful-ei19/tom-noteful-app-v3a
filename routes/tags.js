@@ -52,12 +52,17 @@ router.post('/tags', (req, res, next) => {
     err.status = 400;
     return next(err);
   }
+
   const newItem = { name };
   Tag.create(newItem)
     .then(result => {
       res.location(`${req.originalUrl}/${result.id}`).status(201).json(result);
     })
     .catch(err => {
+      if (err.code === 11000) {
+        err = new Error('The tag name already exists');
+        err.status = 400;
+      }
       next(err);
     });
 });
@@ -69,7 +74,7 @@ router.put('/tags/:id', (req, res, next) => {
 
   /***** Never trust users - validate input *****/
   if (!name) {
-    const err = new Error('Missing `Name` in request body');
+    const err = new Error('Missing `name` in request body');
     err.status = 400;
     return next(err);
   }
@@ -92,8 +97,13 @@ router.put('/tags/:id', (req, res, next) => {
       }
     })
     .catch(err => {
+      if (err.code === 11000) {
+        err = new Error('The tag name already exists');
+        err.status = 400;
+      }
       next(err);
     });
+
 });
 
 /* ========== DELETE/REMOVE A SINGLE ITEM ========== */
