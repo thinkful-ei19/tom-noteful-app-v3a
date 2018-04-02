@@ -3,7 +3,30 @@
 
 const noteful = (function () {
 
+  function showSuccessMessage(message) {
+    const el = $('.js-success-message');
+    el.text(message).show();
+    setTimeout(() => el.fadeOut('slow'), 3000);
+  }
+
+  function showFailureMessage(message) {
+    const el = $('.js-error-message');
+    el.text(message).show();
+    setTimeout(() => el.fadeOut('slow'), 3000);
+  }
+
+  function handleErrors(err) {
+    // if (err.status === 401) {
+    // store.authorized = false;
+    // noteful.render();
+    // }
+    showFailureMessage(err.responseJSON.message);
+  }
+
   function render() {
+
+    $('.signup-login').toggle(!store.authorized);
+
     const notesList = generateNotesList(store.notes, store.currentNote);
     $('.js-notes-list').html(notesList);
 
@@ -121,7 +144,8 @@ const noteful = (function () {
         .then((response) => {
           store.currentNote = response;
           render();
-        });
+        })
+        .catch(handleErrors);
     });
   }
 
@@ -135,7 +159,8 @@ const noteful = (function () {
         .then(response => {
           store.notes = response;
           render();
-        });
+        })
+        .catch(handleErrors);
     });
   }
 
@@ -162,7 +187,8 @@ const noteful = (function () {
           .then(response => {
             store.notes = response;
             render();
-          });
+          })
+          .catch(handleErrors);
       } else {
         api.create('/api/notes', noteObj)
           .then(createResponse => {
@@ -172,7 +198,8 @@ const noteful = (function () {
           .then(response => {
             store.notes = response;
             render();
-          });
+          })
+          .catch(handleErrors);
       }
     });
   }
@@ -200,7 +227,8 @@ const noteful = (function () {
         .then(response => {
           store.notes = response;
           render();
-        });
+        })
+        .catch(handleErrors);
     });
   }
 
@@ -217,12 +245,12 @@ const noteful = (function () {
         store.currentNote = {};
       }
 
-      console.log('Get notes by folderId, coming soon...');
       api.search('/api/notes', store.currentQuery)
         .then(response => {
           store.notes = response;
           render();
-        });
+        })
+        .catch(handleErrors);
     });
   }
 
@@ -231,18 +259,16 @@ const noteful = (function () {
       event.preventDefault();
 
       const newFolderName = $('.js-new-folder-entry').val();
-
-      console.log('Create a folder, coming soon...');
       api.create('/api/folders', { name: newFolderName })
         .then(() => {
           $('.js-new-folder-entry').val();
           return api.search('/api/folders');
-        }).then(response => {
+        })
+        .then(response => {
           store.folders = response;
           render();
-        }).catch(err => {
-          $('.js-error-message').text(err.responseJSON.message);
-        });
+        })
+        .catch(handleErrors);
     });
   }
 
@@ -258,15 +284,18 @@ const noteful = (function () {
         store.currentNote = {};
       }
 
-      console.log('Delete a folder, coming soon...');
       api.remove(`/api/folders/${folderId}`)
         .then(() => {
-          return api.search('/api/folders');
+          const notesPromise = api.search('/api/notes');
+          const folderPromise = api.search('/api/folders');
+          return Promise.all([notesPromise, folderPromise]);
         })
-        .then(response => {
-          store.folders = response;
+        .then(([notes, folders]) => {
+          store.notes = notes;
+          store.folders = folders;
           render();
-        });
+        })
+        .catch(handleErrors);
     });
   }
 
@@ -282,12 +311,12 @@ const noteful = (function () {
 
       store.currentNote = {};
 
-      console.log('Get notes by tagId, coming soon...');
       api.search('/api/notes', store.currentQuery)
         .then(response => {
           store.notes = response;
           render();
-        });
+        })
+        .catch(handleErrors);
     });
   }
 
@@ -296,18 +325,15 @@ const noteful = (function () {
       event.preventDefault();
 
       const newTagName = $('.js-new-tag-entry').val();
-
-      console.log('Create a tag, coming soon...');
       api.create('/api/tags', { name: newTagName })
         .then(() => {
           return api.search('/api/tags');
-        }).then(response => {
+        })
+        .then(response => {
           store.tags = response;
           render();
         })
-        .catch(err => {
-          console.error(err);
-        });
+        .catch(handleErrors);
     });
   }
 
@@ -322,7 +348,6 @@ const noteful = (function () {
 
       store.currentNote = {};
 
-      console.log('Delete a tag, coming soon...');
       api.remove(`/api/tags/${tagId}`)
         .then(() => {
           return api.search('/api/tags');
@@ -334,7 +359,61 @@ const noteful = (function () {
         .then(response => {
           store.notes = response;
           render();
-        });
+        })
+        .catch(handleErrors);
+    });
+  }
+
+  function handleSignupSubmit() {
+    $('.js-signup-from').on('submit', event => {
+      event.preventDefault();
+
+      const signupForm = $(event.currentTarget);
+      const newUser = {
+        fullname: signupForm.find('.js-fullname-entry').val(),
+        username: signupForm.find('.js-username-entry').val(),
+        password: signupForm.find('.js-password-entry').val()
+      };
+
+      api.create('/api/users', newUser)
+        .then(response => {
+          signupForm[0].reset();
+          showSuccessMessage(`Thank you, ${response.fullname || response.username} for signing up!`);
+        })
+        .catch(handleErrors);
+    });
+  }
+
+  function handleLoginSubmit() {
+    $('.js-login-form').on('submit', event => {
+      event.preventDefault();
+
+      const loginForm = $(event.currentTarget);
+      const loginUser = {
+        username: loginForm.find('.js-username-entry').val(),
+        password: loginForm.find('.js-password-entry').val()
+      };
+
+      api.create('/api/login', loginUser)
+        .then(response => {
+          store.authorized = true;
+          loginForm[0].reset();
+
+          store.currentUser = response;
+
+          return Promise.all([
+            api.search('/api/notes'),
+            api.search('/api/folders'),
+            api.search('/api/tags')
+          ]);
+        })
+        .then(([notes, folders, tags]) => {
+          store.notes = notes;
+          store.folders = folders;
+          store.tags = tags;
+          render();
+        })
+        .catch(handleErrors);
     });
   }
 
@@ -352,6 +431,9 @@ const noteful = (function () {
     handleTagClick();
     handleNewTagSubmit();
     handleTagDeleteClick();
+
+    handleSignupSubmit();
+    handleLoginSubmit();
   }
 
   // This object contains the only exposed methods from this module:
