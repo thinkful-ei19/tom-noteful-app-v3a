@@ -16,10 +16,10 @@ const noteful = (function () {
   }
 
   function handleErrors(err) {
-    // if (err.status === 401) {
-    // store.authorized = false;
-    // noteful.render();
-    // }
+    if (err.status === 401) {
+      store.authorized = false;
+      noteful.render();
+    }
     showFailureMessage(err.responseJSON.message);
   }
 
@@ -393,14 +393,14 @@ const noteful = (function () {
         username: loginForm.find('.js-username-entry').val(),
         password: loginForm.find('.js-password-entry').val()
       };
-
+      
       api.create('/api/login', loginUser)
         .then(response => {
+          store.authToken = response.authToken; // <<== add this
           store.authorized = true;
           loginForm[0].reset();
 
-          store.currentUser = response;
-
+        
           return Promise.all([
             api.search('/api/notes'),
             api.search('/api/folders'),
@@ -434,6 +434,7 @@ const noteful = (function () {
 
     handleSignupSubmit();
     handleLoginSubmit();
+    handleErrors();
   }
 
   // This object contains the only exposed methods from this module:
