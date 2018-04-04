@@ -12,8 +12,9 @@ router.get('/notes', (req, res, next) => {
   const { searchTerm } = req.query;
   const { folderId } = req.query;
   const { tagId } = req.query;
+  const userId  = req.user.id;
 
-  let filter = {};
+  let filter = {userId};
 
   if (searchTerm) {
     const re = new RegExp(searchTerm, 'i');
@@ -43,6 +44,7 @@ router.get('/notes', (req, res, next) => {
 /* ========== GET/READ A SINGLE ITEM ========== */
 router.get('/notes/:id', (req, res, next) => {
   const { id } = req.params;
+  const userId = req.user.id;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
     const err = new Error('The `id` is not valid');
@@ -50,7 +52,7 @@ router.get('/notes/:id', (req, res, next) => {
     return next(err);
   }
 
-  Note.findById(id)
+  Note.findOne({ _id: id, userId })
     .populate('tags')
     .then(result => {
       if (result) {
@@ -67,7 +69,7 @@ router.get('/notes/:id', (req, res, next) => {
 /* ========== POST/CREATE AN ITEM ========== */
 router.post('/notes', (req, res, next) => {
   const { title, content, folderId, tags } = req.body; // added folder id
- 
+  const userId = req.user.id;
   /***** Never trust users - validate input *****/
   if (!title) {
     const err = new Error('Missing `title` in request body');
@@ -83,15 +85,15 @@ router.post('/notes', (req, res, next) => {
       }
     });
   }
-  const newItem = { title, content, folderId, tags };
+  const newItem = { title, content, folderId, tags, userId };
 
   Note.create(newItem) 
     .then(result => {
-      { 
-        if (tags) { // allows user to post with no tags
-          newItem.populate('tags'); 
-        }
-      } 
+      // { 
+      //   if (tags) { // allows user to post with no tags
+      //     newItem.populate('tags'); 
+      //   }
+      // } 
       res.location(`${req.originalUrl}/${result.id}`).status(201).json(result);
     })
     .catch(err => {
@@ -103,6 +105,7 @@ router.post('/notes', (req, res, next) => {
 router.put('/notes/:id', (req, res, next) => {
   const { id } = req.params;
   const { title, content, folderId, tags } = req.body;
+  const userId = req.user.id;
 
   /***** Never trust users - validate input *****/
   if (!title) {
@@ -117,7 +120,9 @@ router.put('/notes/:id', (req, res, next) => {
     return next(err);
   }
 
-  const updateItem = { title, content, folderId, tags };
+
+
+  const updateItem = { title, content, folderId, tags, userId };
   const options = { new: true };
 
   Note.findByIdAndUpdate(id, updateItem, options)
@@ -136,8 +141,9 @@ router.put('/notes/:id', (req, res, next) => {
 /* ========== DELETE/REMOVE A SINGLE ITEM ========== */
 router.delete('/notes/:id', (req, res, next) => {
   const { id } = req.params;
+  const userId = req.user.id;
 
-  Note.findByIdAndRemove(id)
+  Note.findOneAndRemove({_id: id, userId})
     .then(() => {
       res.status(204).end();
     })
