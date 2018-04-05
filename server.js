@@ -37,6 +37,7 @@ app.use('/api', authRouter);
 
 // Endpoints below this require a valid JWT
 app.use(passport.authenticate('jwt', { session: false, failWithError: true }));
+/* ========== LOCKED ENDPOINTS BELOW MUST KEEP UNDER THIS LINE ========== */
 
 // Mount router on "/api"
 app.use('/api', notesRouter);

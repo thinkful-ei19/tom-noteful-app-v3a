@@ -10,7 +10,8 @@ const Note = require('../models/note');
 
 /* ========== GET/READ ALL ITEMS ========== */
 router.get('/tags', (req, res, next) => {
-  Tag.find()
+  const userId = req.user.id;
+  Tag.find({userId})
     .sort('name')
     .then(results => {
       res.json(results);
@@ -23,6 +24,7 @@ router.get('/tags', (req, res, next) => {
 // /* ========== GET/READ A SINGLE ITEM ========== */
 router.get('/tags/:id', (req, res, next) => {
   const { id } = req.params;
+  const userId = req.user.id;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
     const err = new Error('The `id` is not valid');
@@ -30,7 +32,7 @@ router.get('/tags/:id', (req, res, next) => {
     return next(err);
   }
 
-  Tag.findById(id)
+  Tag.findOne({ _id: id, userId })
     .then(result => {
       if (result) {
         res.json(result);
@@ -46,6 +48,7 @@ router.get('/tags/:id', (req, res, next) => {
 /* ========== POST/CREATE AN ITEM ========== */
 router.post('/tags', (req, res, next) => {
   const { name } = req.body;
+  const userId = req.user.id;
   /***** Never trust users - validate input *****/
   if (!name) {
     const err = new Error('Missing `name` in request body');
@@ -53,7 +56,7 @@ router.post('/tags', (req, res, next) => {
     return next(err);
   }
 
-  const newItem = { name };
+  const newItem = { name, userId };
   Tag.create(newItem)
     .then(result => {
       res.location(`${req.originalUrl}/${result.id}`).status(201).json(result);
@@ -71,6 +74,7 @@ router.post('/tags', (req, res, next) => {
 router.put('/tags/:id', (req, res, next) => {
   const { id } = req.params;
   const { name } = req.body;
+  const userId = req.user.id;
 
   /***** Never trust users - validate input *****/
   if (!name) {
@@ -85,7 +89,7 @@ router.put('/tags/:id', (req, res, next) => {
     return next(err);
   }
 
-  const updateItem = { name };
+  const updateItem = { name, userId };
   const options = { new: true };
 
   Tag.findByIdAndUpdate(id, updateItem, options)
@@ -109,19 +113,28 @@ router.put('/tags/:id', (req, res, next) => {
 /* ========== DELETE/REMOVE A SINGLE ITEM ========== */
 router.delete('/tags/:id', (req, res, next) => {
   const { id } = req.params;
+  const userId = req.user.id;
 
-  Tag.findByIdAndRemove(id)
-    .then(() => {
-      res.status(204).end();
-
+  Tag.findOneAndRemove({ _id: id, userId })
+    .then(result => {
+      if (result) {
+        res.status(204).end();
+      }
+      else {
+        next();
+      }
     })
     .catch(err => {
       next(err);
     });
-  Note.findByIdAndRemove(id)
-    .then(() => {
-      res.status(204).end();
-
+  Note.findOneAndRemove({ _id: id, userId })
+    .then(result => {
+      if (result) {
+        res.status(204).end();
+      }
+      else {
+        next();
+      }
     })
     .catch(err => {
       next(err);

@@ -10,7 +10,8 @@ const Note = require('../models/note');
 
 /* ========== GET/READ ALL ITEMS ========== */
 router.get('/folders', (req, res, next) => {
-  Folder.find()
+  const userId = req.user.id;
+  Folder.find({userId})
     .sort('name')
     .then(results => {
       res.json(results);
@@ -23,6 +24,7 @@ router.get('/folders', (req, res, next) => {
 // /* ========== GET/READ A SINGLE ITEM ========== */
 router.get('/folders/:id', (req, res, next) => {
   const { id } = req.params;
+  const userId = req.user.id;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
     const err = new Error('The `id` is not valid');
@@ -30,7 +32,7 @@ router.get('/folders/:id', (req, res, next) => {
     return next(err);
   }
 
-  Folder.findById(id)
+  Folder.findOne({ _id: id, userId })
     .then(result => {
       if (result) {
         res.json(result);
@@ -46,13 +48,21 @@ router.get('/folders/:id', (req, res, next) => {
 /* ========== POST/CREATE AN ITEM ========== */
 router.post('/folders', (req, res, next) => {
   const { name } = req.body;
+  const userId = req.user.id;
   /***** Never trust users - validate input *****/
   if (!name) {
     const err = new Error('Missing `name` in request body');
     err.status = 400;
     return next(err);
   }
-  const newItem = { name };
+
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    const err = new Error('The `id` is not valid');
+    err.status = 400;
+    return next(err);
+  }
+  
+  const newItem = { name, userId };
   Folder.create(newItem)
     .then(result => {
       res.location(`${req.originalUrl}/${result.id}`).status(201).json(result);
@@ -66,6 +76,7 @@ router.post('/folders', (req, res, next) => {
 router.put('/folders/:id', (req, res, next) => {
   const { id } = req.params;
   const { name } = req.body;
+  const userId = req.user.id;
 
   /***** Never trust users - validate input *****/
   if (!name) {
@@ -80,7 +91,13 @@ router.put('/folders/:id', (req, res, next) => {
     return next(err);
   }
 
-  const updateItem = { name };
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    const err = new Error('The `id` is not valid');
+    err.status = 400;
+    return next(err);
+  }
+
+  const updateItem = { name, userId };
   const options = { new: true };
 
   Folder.findByIdAndUpdate(id, updateItem, options)
@@ -99,11 +116,16 @@ router.put('/folders/:id', (req, res, next) => {
 /* ========== DELETE/REMOVE A SINGLE ITEM ========== */
 router.delete('/folders/:id', (req, res, next) => {
   const { id } = req.params;
+  const userId = req.user.id;
 
-  Folder.findByIdAndRemove(id)
-    .then(() => {
-      res.status(204).end();
-
+  Folder.findOneAndRemove({ _id: id, userId })
+    .then(result => {
+      if (result) {
+        res.status(204).end();
+      }
+      else {
+        next();
+      }
     })
     .catch(err => {
       next(err);
